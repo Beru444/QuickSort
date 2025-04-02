@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorting Visualizer - Quick Sort</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .active {
+            background-color: #2196F3;
+        }
+        
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .slider-label {
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #555;
+        }
+        
+        input[type="range"] {
+            width: 150px;
+        }
+        
+        .visualizer {
+            width: 90%;
+            max-width: 800px;
+            height: 400px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: flex;
+            align-items: flex-end;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        
+        .array-bar {
+            flex: 1;
+            margin: 0 1px;
+            background-color: #4CAF50;
+            transition: height 0.2s, background-color 0.1s;
+        }
+        
+        .comparing {
+            background-color: #ff9800;
+        }
+        
+        .pivot {
+            background-color: #f44336;
+        }
+        
+        .sorted {
+            background-color: #2196F3;
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            width: 90%;
+            max-width: 800px;
+        }
+        
+        #customArray {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        #setArray {
+            padding: 8px 15px;
+        }
+        
+        .instructions {
+            margin-bottom: 15px;
+            color: #666;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Quick Sorting Visualizer</h1>
+    
+    <div class="instructions">
+        Enter numbers separated by commas (e.g., 5,3,8,1) or click "New Array" for random values
+    </div>
+    
+    <div class="input-container">
+        <input type="text" id="customArray" placeholder="Enter numbers separated by commas">
+        <button id="setArray">Set Array</button>
+    </div>
+    
+    <div class="controls">
+        <button id="newArray">New Array</button>
+        
+        <div class="slider-container">
+            <div class="slider-label">Speed</div>
+            <input type="range" id="speed" min="1" max="100" value="50">
+        </div>
+        
+        <div class="slider-container">
+            <div class="slider-label">Size</div>
+            <input type="range" id="size" min="5" max="100" value="30">
+        </div>
+        
+        <button id="quickSort" class="active">Quick Sort</button>
+    </div>
+    
+    <div class="visualizer" id="visualizer"></div>
+    
+    <script>
+        // DOM elements
+        const visualizer = document.getElementById('visualizer');
+        const newArrayBtn = document.getElementById('newArray');
+        const speedSlider = document.getElementById('speed');
+        const sizeSlider = document.getElementById('size');
+        const quickSortBtn = document.getElementById('quickSort');
+        const customArrayInput = document.getElementById('customArray');
+        const setArrayBtn = document.getElementById('setArray');
+        
+        // State variables
+        let array = [];
+        let animationSpeed = 101 - speedSlider.value; // Reverse the value (100 = slowest, 1 = fastest)
+        let isSorting = false;
+        
+        // Initialize
+        generateNewArray();
+        
+        // Event listeners
+        newArrayBtn.addEventListener('click', () => {
+            if (!isSorting) {
+                generateNewArray();
+                customArrayInput.value = ''; // Clear the input field
+            }
+        });
+        
+        speedSlider.addEventListener('input', () => {
+            animationSpeed = 101 - speedSlider.value;
+        });
+        
+        sizeSlider.addEventListener('input', () => {
+            if (!isSorting) {
+                generateNewArray();
+                customArrayInput.value = ''; // Clear the input field
+            }
+        });
+        
+        quickSortBtn.addEventListener('click', () => {
+            if (!isSorting) {
+                quickSort();
+            }
+        });
+        
+        setArrayBtn.addEventListener('click', () => {
+            if (!isSorting) {
+                setCustomArray();
+            }
+        });
+        
+        // Functions
+        function generateNewArray() {
+            const arraySize = parseInt(sizeSlider.value);
+            array = [];
+            visualizer.innerHTML = '';
+            
+            for (let i = 0; i < arraySize; i++) {
+                array.push(Math.floor(Math.random() * 100) + 5);
+                
+                const bar = document.createElement('div');
+                bar.className = 'array-bar';
+                bar.style.height = `${array[i]}%`;
+                visualizer.appendChild(bar);
+            }
+        }
+        
+        function setCustomArray() {
+            const input = customArrayInput.value.trim();
+            
+            if (!input) {
+                alert('Please enter numbers separated by commas');
+                return;
+            }
+            
+            // Parse input string into array of numbers
+            const inputArray = input.split(',')
+                .map(item => parseInt(item.trim()))
+                .filter(item => !isNaN(item));
+            
+            if (inputArray.length === 0) {
+                alert('No valid numbers found. Please enter numbers separated by commas');
+                return;
+            }
+            
+            // Update the array and visualization
+            array = inputArray;
+            visualizer.innerHTML = '';
+            
+            // Find the maximum value for scaling
+            const maxValue = Math.max(...array);
+            
+            for (let i = 0; i < array.length; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'array-bar';
+                bar.style.height = `${(array[i] / maxValue) * 100}%`;
+                visualizer.appendChild(bar);
+            }
+            
+            // Update size slider to match the custom array size
+            sizeSlider.value = array.length;
+        }
+        
+        async function quickSort() {
+            isSorting = true;
+            disableButtons();
+            
+            await quickSortHelper(0, array.length - 1);
+            
+            // Mark all elements as sorted
+            const bars = document.querySelectorAll('.array-bar');
+            for (let i = 0; i < bars.length; i++) {
+                bars[i].classList.add('sorted');
+                await sleep(animationSpeed / 2);
+            }
+            
+            isSorting = false;
+            enableButtons();
+        }
+        
+        async function quickSortHelper(start, end) {
+            if (start >= end) return;
+            
+            const pivotIndex = await partition(start, end);
+            await quickSortHelper(start, pivotIndex - 1);
+            await quickSortHelper(pivotIndex + 1, end);
+        }
+        
+        async function partition(start, end) {
+            const bars = document.querySelectorAll('.array-bar');
+            const pivotValue = array[end];
+            
+            // Highlight pivot
+            bars[end].classList.add('pivot');
+            
+            let pivotIndex = start;
+            
+            for (let i = start; i < end; i++) {
+                // Highlight comparing elements
+                bars[i].classList.add('comparing');
+                await sleep(animationSpeed);
+                
+                if (array[i] < pivotValue) {
+                    // Swap elements in array
+                    [array[i], array[pivotIndex]] = [array[pivotIndex], array[i]];
+                    
+                    // Visualize swap
+                    bars[i].style.height = `${array[i]}%`;
+                    bars[pivotIndex].style.height = `${array[pivotIndex]}%`;
+                    
+                    // Highlight swap
+                    bars[pivotIndex].classList.add('comparing');
+                    await sleep(animationSpeed);
+                    bars[pivotIndex].classList.remove('comparing');
+                    
+                    pivotIndex++;
+                }
+                
+                bars[i].classList.remove('comparing');
+            }
+            
+            // Swap pivot to correct position
+            [array[pivotIndex], array[end]] = [array[end], array[pivotIndex]];
+            bars[pivotIndex].style.height = `${array[pivotIndex]}%`;
+            bars[end].style.height = `${array[end]}%`;
+            
+            // Visualize final pivot placement
+            bars[end].classList.remove('pivot');
+            bars[pivotIndex].classList.add('sorted');
+            await sleep(animationSpeed);
+            
+            return pivotIndex;
+        }
+        
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        
+        function disableButtons() {
+            newArrayBtn.disabled = true;
+            quickSortBtn.disabled = true;
+            sizeSlider.disabled = true;
+            setArrayBtn.disabled = true;
+            customArrayInput.disabled = true;
+        }
+        
+        function enableButtons() {
+            newArrayBtn.disabled = false;
+            quickSortBtn.disabled = false;
+            sizeSlider.disabled = false;
+            setArrayBtn.disabled = false;
+            customArrayInput.disabled = false;
+        }
+    </script>
+</body>
+</html>
